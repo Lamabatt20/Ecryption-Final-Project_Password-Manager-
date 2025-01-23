@@ -1,5 +1,12 @@
 package application;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -11,6 +18,8 @@ import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 
 public class signup {
+    public static int userID ;
+    static Button backk = new Button(""); 
 
     public static Pane createSignupPane(Stage primaryStage) {
         Image backgroundImage = new Image("background2.png");
@@ -20,17 +29,19 @@ public class signup {
         backgroundView.fitWidthProperty().bind(primaryStage.widthProperty());
         backgroundView.fitHeightProperty().bind(primaryStage.heightProperty());
 
-        VBox containerBox = new VBox(10);
-        containerBox.setAlignment(Pos.CENTER);
-        containerBox.setPrefSize(400, 350); 
-        containerBox.setTranslateY(40);
-
         Label usernameLabel = new Label("Username:");
         usernameLabel.setStyle("-fx-text-fill: white;");
         usernameLabel.setFont(Font.font("Arial", FontWeight.BOLD, 24));
         TextField usernameField = new TextField();
         usernameField.setPromptText("Enter your username");
         usernameField.setMaxWidth(300); 
+        
+        Label emailLabel = new Label("Useremail:");
+        emailLabel.setStyle("-fx-text-fill: white;");
+        emailLabel.setFont(Font.font("Arial", FontWeight.BOLD, 24));
+        TextField emailField = new TextField();
+        emailField.setPromptText("Enter your Email");
+        emailField.setMaxWidth(300); 
 
         Label passwordLabel = new Label("Password:");
         passwordLabel.setStyle("-fx-text-fill: white;");
@@ -45,18 +56,60 @@ public class signup {
         PasswordField confirmPasswordField = new PasswordField();
         confirmPasswordField.setPromptText("Confirm your password");
         confirmPasswordField.setMaxWidth(300); 
-        Button loginButton = new Button("Sign Up");
-        loginButton.setFont(Font.font(16));
-        loginButton.setStyle("-fx-background-color: #7cfff3; -fx-text-fill: black;");
-        loginButton.setMaxWidth(300); 
+        
+        Button SignUp = new Button("Sign Up");
+        SignUp.setFont(Font.font(16));
+        SignUp.setStyle("-fx-background-color: #7cfff3; -fx-text-fill: black;-fx-font-size: 18px;");
+        SignUp.setMaxWidth(300); 
 
-        loginButton.setOnAction(e -> {
+        Label errorLabel = new Label("Invalid username or password.");
+        errorLabel.setFont(Font.font("Arial", FontWeight.NORMAL, 14));
+        errorLabel.setStyle("-fx-text-fill: red;");
+        errorLabel.setVisible(false);
+
+        VBox containerBox = new VBox(10);
+        containerBox.setAlignment(Pos.CENTER);
+        containerBox.setPrefSize(400, 350); 
+        containerBox.setTranslateY(40);
+
+        HBox usernameHBox = new HBox(10);
+        usernameHBox.setAlignment(Pos.CENTER);
+        usernameHBox.getChildren().addAll(usernameLabel, usernameField );
+        
+        HBox emailHBox = new HBox(10);
+        emailHBox.setAlignment(Pos.CENTER);
+        emailHBox.getChildren().addAll(emailLabel, emailField);
+        
+        HBox passwordHBox = new HBox(10);
+        passwordHBox.setAlignment(Pos.CENTER);
+        passwordHBox.getChildren().addAll(passwordLabel, passwordField);
+        
+        HBox confirmPasswordHBox = new HBox(10);
+        confirmPasswordHBox.setAlignment(Pos.CENTER);
+        confirmPasswordHBox.getChildren().addAll(confirmPasswordLabel, confirmPasswordField);
+
+        // Back Button
+        Image backIcon = new Image("back.png");
+        ImageView backIconView = new ImageView(backIcon);
+        backIconView.setFitHeight(60); 
+        backIconView.setFitWidth(60); 
+        backk.setGraphic(backIconView);
+        backk.setStyle("-fx-background-color: transparent;");
+
+        containerBox.getChildren().addAll(
+                usernameHBox, emailHBox, passwordHBox, confirmPasswordHBox,
+                SignUp, errorLabel
+        );
+        
+        SignUp.setOnAction(e -> {
+            String username = usernameField.getText();
+            String email = emailField.getText();
             String password = passwordField.getText();
             String confirmPassword = confirmPasswordField.getText();
             
             if (password.equals(confirmPassword)) {
                 Pane encodeBorderPane = new BorderPane();
-                encodeBorderPane = dashboard.dashboard(primaryStage);
+                encodeBorderPane = dashboard.dashboard(primaryStage ,  addUserToDatabase(username, email, password));
                 Scene encodeScene = new Scene(encodeBorderPane);
                 primaryStage.setScene(encodeScene);
                 primaryStage.setFullScreen(true);
@@ -69,20 +122,68 @@ public class signup {
             }
         });
 
-        Label errorLabel = new Label("Invalid username or password.");
-        errorLabel.setFont(Font.font("Arial", FontWeight.NORMAL, 14));
-        errorLabel.setStyle("-fx-text-fill: red;");
-        errorLabel.setVisible(false);
-
-        containerBox.getChildren().addAll(
-                usernameLabel, usernameField,
-                passwordLabel, passwordField,
-                confirmPasswordLabel, confirmPasswordField, 
-                loginButton, errorLabel
-        );
-
+        // StackPane for background and content
         StackPane root = new StackPane();
         root.getChildren().addAll(backgroundView, containerBox);
+
+        // Align the back button to the top-left corner
+        StackPane.setAlignment(backk, Pos.TOP_LEFT);
+        root.getChildren().add(backk);  // Add back button to root
+
         return root;
+    }
+
+    private static int addUserToDatabase(String username, String email, String password) {
+        String insertQuery = "INSERT INTO users (UserName, UserEmail, UserPassword) VALUES (?, ?, ?)";
+        String selectQuery = "SELECT LAST_INSERT_ID()";  // Query to get the last generated UserID
+
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(insertQuery)) {
+            
+            // Setting values for the insert query
+            pstmt.setString(1, username);
+            pstmt.setString(2, email);
+            pstmt.setString(3, password);  // Store password as is, or use encryption before inserting
+            
+            // Execute the insert query
+            int rowsAffected = pstmt.executeUpdate();
+            
+            if (rowsAffected > 0) {
+                // If insertion is successful, get the generated UserID using SELECT LAST_INSERT_ID()
+                try (Statement stmt = conn.createStatement()) {
+                    ResultSet rs = stmt.executeQuery(selectQuery);
+                    if (rs.next()) {
+                         userID = rs.getInt(1);  // Get the generated UserID
+                        System.out.println("User added successfully! UserID: " + userID);
+                        return userID;  // Return the generated UserID
+                    }
+                }
+            }
+            
+            return -1;  // Return -1 to indicate failure if no rows were affected or UserID couldn't be retrieved
+
+        } catch (SQLException e) {
+            // Handle any SQL exceptions
+            System.out.println("Database error while adding new user.");
+            e.printStackTrace();
+            return -1;  // Return -1 if there was an error
+        }
+    }
+
+    private static Connection getConnection() throws SQLException {
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            System.out.println("JDBC Driver  found!");
+        } catch (ClassNotFoundException e) {
+            System.out.println("JDBC Driver not found!");
+            e.printStackTrace();
+            throw new SQLException("Unable to load JDBC driver");
+        }
+
+        String dbUrl = "jdbc:mysql://localhost:3306/passwordmanager";
+        String dbUsername = "root"; 
+        String dbPassword = "";    
+
+        return DriverManager.getConnection(dbUrl, dbUsername, dbPassword);
     }
 }

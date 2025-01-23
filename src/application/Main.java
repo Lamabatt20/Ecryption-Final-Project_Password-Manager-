@@ -73,6 +73,15 @@ public class Main extends Application {
             primaryStage.setScene(mainScene);
             primaryStage.setFullScreen(true);
             primaryStage.show();
+            
+           login.back.setOnAction(e -> {
+                primaryStage.setScene(mainScene);
+                primaryStage.setFullScreen(true);
+            });
+            signup.backk.setOnAction(e -> {
+            	primaryStage.setScene(mainScene);
+                primaryStage.setFullScreen(true);
+            });
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -90,6 +99,8 @@ public class Main extends Application {
     }
 
     public static void main(String[] args) {
+  
         launch(args);
+        
     }
 }
