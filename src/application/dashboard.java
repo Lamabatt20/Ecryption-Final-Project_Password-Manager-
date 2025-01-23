@@ -10,12 +10,13 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
-import javafx.animation.PauseTransition;
 import javafx.util.Duration;  
 import java.sql.*;
 
 public class dashboard {
 	public static StackPane root;
+	static TableView<PasswordEntry> tableView = new TableView<>();
+
 	public static Pane dashboard(Stage primaryStage, int userID) {
 		Image backgroundImage = new Image("background1.png");
 		ImageView backgroundView = new ImageView(backgroundImage);
@@ -23,7 +24,6 @@ public class dashboard {
 		backgroundView.fitWidthProperty().bind(primaryStage.widthProperty());
 		backgroundView.fitHeightProperty().bind(primaryStage.heightProperty());
 
-		TableView<PasswordEntry> tableView = new TableView<>();
 		tableView.setStyle("-fx-background-color: black; " + "-fx-control-inner-background: black; "
 				+ "-fx-control-inner-background-alt: black; " + "-fx-border-color: white; -fx-font-size: 25px;");
 
@@ -53,9 +53,10 @@ public class dashboard {
 				setStyle("-fx-alignment: CENTER;");
 			}
 		});
+		ObservableList<PasswordEntry> data = getPasswordData(userID);
 
 		TableColumn<PasswordEntry, Void> viewColumn = createViewColumn();
-		TableColumn<PasswordEntry, Void> editColumn = createEditColumn(userID);
+		TableColumn<PasswordEntry, Void> editColumn = createEditColumn(userID, data);
 		TableColumn<PasswordEntry, Void> deleteColumn = createDeleteColumn(userID);
 
 		tableView.getColumns().addAll(accountTypeColumn, usernameColumn, passwordColumn, viewColumn, editColumn,
@@ -65,8 +66,6 @@ public class dashboard {
 		tableView.setPrefWidth(totalColumnWidth);
 		tableView.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
 
-		// Fetch data for this specific user (UserID)
-		ObservableList<PasswordEntry> data = getPasswordData(userID);
 
 		tableView.setItems(data);
 
@@ -80,7 +79,7 @@ public class dashboard {
 
 		Button addButton = new Button("Add New Pass");
 		addButton.setStyle("-fx-font-size: 18px; -fx-background-color: #7cfff3; -fx-text-fill: black;");
-		addButton.setOnAction(e -> addNewPassword(data,userID));
+		addButton.setOnAction(e -> addNewPassword(data,userID, tableView));
 		
 		Button logoutButton = new Button("Logout");
 		logoutButton.setStyle("-fx-font-size: 18px; -fx-background-color: #7cfff3; -fx-text-fill: black;");
@@ -110,7 +109,6 @@ public class dashboard {
 	private static ObservableList<PasswordEntry> getPasswordData(int userID) {
 		ObservableList<PasswordEntry> data = FXCollections.observableArrayList();
 
-		// Database query to fetch passwords for the given UserID
 		String query = "SELECT * FROM useraccounts WHERE UserID = ?";
 
 		try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(query)) {
@@ -134,7 +132,6 @@ public class dashboard {
 		return data;
 	}
 
-	// Add the methods for creating the view, edit, and delete columns
 	private static TableColumn<PasswordEntry, Void> createViewColumn() {
 		TableColumn<PasswordEntry, Void> viewColumn = new TableColumn<>("View");
 		viewColumn.setStyle("-fx-alignment: CENTER;");
@@ -160,7 +157,7 @@ public class dashboard {
 		return viewColumn;
 	}
 
-	private static TableColumn<PasswordEntry, Void> createEditColumn(int userID) {
+	private static TableColumn<PasswordEntry, Void> createEditColumn(int userID, ObservableList<PasswordEntry> data) {
 		TableColumn<PasswordEntry, Void> editColumn = new TableColumn<>("Edit");
 		editColumn.setStyle("-fx-alignment: CENTER;");
 		editColumn.setCellFactory(column -> new TableCell<>() {
@@ -171,7 +168,7 @@ public class dashboard {
 				editButton.setStyle("-fx-background-color: transparent; -fx-padding: 0;");
 				editButton.setOnAction(e -> {
 					PasswordEntry entry = getTableView().getItems().get(getIndex());
-					editEntry(entry,userID);
+					editEntry(entry,userID, data);
 				});
 			}
 
@@ -211,22 +208,36 @@ public class dashboard {
 		return deleteColumn;
 	}
 
-	private static void editEntry(PasswordEntry entry,int userID) {
-	    String decryptedPassword = HillCipher.decrypt(entry.getPassword().toUpperCase());
-		TextInputDialog dialog = new TextInputDialog(decryptedPassword);
-		dialog.setTitle("Edit Password");
-		dialog.setHeaderText("Edit Password for " + entry.getAccountType());
-		dialog.setContentText("New Password:");
+	private static void editEntry(PasswordEntry entry, int userID,ObservableList<PasswordEntry> data) {
+	    String decryptedPassword = HillCipher.decrypt(entry.getPassword());
+	    System.out.println(entry.getPassword());
+	    System.out.println(decryptedPassword);
+	    TextInputDialog dialog = new TextInputDialog(decryptedPassword);
+	    dialog.setTitle("Edit Password");
+	    dialog.setHeaderText("Edit Password for " + entry.getAccountType());
+	    dialog.setContentText("New Password:");
 
-		dialog.showAndWait().ifPresent(newPassword -> {
-			entry.setPassword(newPassword);
-			updatePasswordInDatabase(entry, userID);
-		});
+	    dialog.showAndWait().ifPresent(newPassword -> {
+	        entry.setPassword(newPassword);
+	        updatePasswordInDatabase(entry, userID, data, tableView);
+
+	        ObservableList<PasswordEntry> updatedData = getPasswordData(userID);
+	        TableView<PasswordEntry> tableView = (TableView<PasswordEntry>) root.getChildren().stream()
+	                .filter(node -> node instanceof TableView)
+	                .findFirst()
+	                .orElse(null);
+
+	        if (tableView != null) {
+	            tableView.setItems(updatedData);
+	        }
+	    });
 	}
 
-	private static void viewPassword(PasswordEntry entry) {
-	    String decryptedPassword = HillCipher.decrypt(entry.getPassword().toUpperCase());
 
+	private static void viewPassword(PasswordEntry entry) {
+	    String decryptedPassword = HillCipher.decrypt(entry.getPassword());
+	    System.out.println(entry.getPassword());
+	    System.out.println(decryptedPassword);
 	    Alert alert = new Alert(Alert.AlertType.INFORMATION);
 	    alert.setTitle("View Password");
 	    alert.setHeaderText("Password for " + entry.getAccountType());
@@ -234,76 +245,81 @@ public class dashboard {
 	    alert.showAndWait();
 	}
 
-	private static void addNewPassword(ObservableList<PasswordEntry> data, int userID) {
-		Dialog<PasswordEntry> dialog = new Dialog<>();
-		dialog.setTitle("Add New Password");
-		dialog.setHeaderText("Enter Account Details");
+	private static void addNewPassword(ObservableList<PasswordEntry> data, int userID, TableView<PasswordEntry> tableView) {
+	    Dialog<PasswordEntry> dialog = new Dialog<>();
+	    dialog.setTitle("Add New Password");
+	    dialog.setHeaderText("Enter Account Details");
 
-		GridPane grid = new GridPane();
-		grid.setVgap(10);
-		grid.setHgap(10);
-		grid.setAlignment(Pos.CENTER);
+	    GridPane grid = new GridPane();
+	    grid.setVgap(10);
+	    grid.setHgap(10);
+	    grid.setAlignment(Pos.CENTER);
 
-		ComboBox<String> accountTypeComboBox = new ComboBox<>();
-		accountTypeComboBox.getItems().addAll("Facebook", "Email", "LinkedIn", "Twitter", "Instagram", "Google",
-				"GitHub", "Netflix", "Amazon", "Bank", "Other");
-		accountTypeComboBox.setPromptText("Select Account Type");
-		grid.add(new Label("Account Type:"), 0, 0);
-		grid.add(accountTypeComboBox, 1, 0);
+	    ComboBox<String> accountTypeComboBox = new ComboBox<>();
+	    accountTypeComboBox.getItems().addAll("Facebook", "Email", "LinkedIn", "Twitter", "Instagram", "Google",
+	            "GitHub", "Netflix", "Amazon", "Bank", "Other");
+	    accountTypeComboBox.setPromptText("Select Account Type");
+	    grid.add(new Label("Account Type:"), 0, 0);
+	    grid.add(accountTypeComboBox, 1, 0);
 
-		TextField usernameField = new TextField();
-		usernameField.setPromptText("Enter Username");
-		grid.add(new Label("Username:"), 0, 1);
-		grid.add(usernameField, 1, 1);
+	    TextField usernameField = new TextField();
+	    usernameField.setPromptText("Enter Username");
+	    grid.add(new Label("Username:"), 0, 1);
+	    grid.add(usernameField, 1, 1);
 
-		PasswordField passwordField = new PasswordField();
-		passwordField.setPromptText("Enter Password");
-		grid.add(new Label("Password:"), 0, 2);
-		grid.add(passwordField, 1, 2);
+	    PasswordField passwordField = new PasswordField();
+	    passwordField.setPromptText("Enter Password");
+	    grid.add(new Label("Password:"), 0, 2);
+	    grid.add(passwordField, 1, 2);
 
-		dialog.getDialogPane().setContent(grid);
+	    dialog.getDialogPane().setContent(grid);
 
-		ButtonType saveButton = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
-		ButtonType cancelButton = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
-		dialog.getDialogPane().getButtonTypes().addAll(saveButton, cancelButton);
+	    ButtonType saveButton = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
+	    ButtonType cancelButton = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+	    dialog.getDialogPane().getButtonTypes().addAll(saveButton, cancelButton);
 
-		dialog.setResultConverter(button -> {
-			if (button == saveButton) {
-				String accountType = accountTypeComboBox.getValue();
-				String username = usernameField.getText();
-				String password = passwordField.getText();
+	    dialog.setResultConverter(button -> {
+	        if (button == saveButton) {
+	            String accountType = accountTypeComboBox.getValue();
+	            String username = usernameField.getText();
+	            String password = passwordField.getText();
 
-				if (accountType != null && !username.isEmpty() && !password.isEmpty()) {
-					PasswordEntry newEntry = new PasswordEntry(accountType, username, password);
-					insertNewPasswordIntoDatabase(newEntry,userID);
-					return newEntry;
-				} else {
-					return null;
-				}
-			}
-			return null;
-		});
+	            if (accountType != null && !username.isEmpty() && !password.isEmpty()) {
+	                PasswordEntry newEntry = new PasswordEntry(accountType, username, password);
+	                insertNewPasswordIntoDatabase(newEntry, userID, data, tableView);
+	                return newEntry;
+	            } else {
+	                return null;
+	            }
+	        }
+	        return null;
+	    });
 
-		dialog.showAndWait().ifPresent(entry -> {
-			data.add(entry);
-		});
+	    dialog.showAndWait().ifPresent(entry -> {
+	        data.add(entry);
+	    });
 	}
 
-	private static void insertNewPasswordIntoDatabase(PasswordEntry entry, int userID) {
+	private static void insertNewPasswordIntoDatabase(PasswordEntry entry, int userID, ObservableList<PasswordEntry> data, TableView<PasswordEntry> tableView) {
 	    String encryptedPassword = HillCipher.encrypt(entry.getPassword());
-
+	    System.out.println(entry.getPassword());
+	    System.out.println(encryptedPassword);
 	    String query = "INSERT INTO useraccounts (UserID, AccountName, AccountUserName, AccountPassword) VALUES (?, ?, ?, ?)";
 
 	    try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(query)) {
 	        pstmt.setInt(1, userID);
 	        pstmt.setString(2, entry.getAccountType());
 	        pstmt.setString(3, entry.getUsername());
-	        pstmt.setString(4, encryptedPassword); 
+	        pstmt.setString(4, encryptedPassword);
 
 	        int rowsAffected = pstmt.executeUpdate();
 	        if (rowsAffected > 0) {
 	            System.out.println("New password entry added to database successfully!");
-	            showDeleteSuccessMessage(root , "New password entry added to database successfully!");
+	            showDeleteSuccessMessage(root, "New password entry added to database successfully!");
+
+	            ObservableList<PasswordEntry> updatedData = getPasswordData(userID);
+	            data.setAll(updatedData); 
+	            tableView.refresh(); 
 	        } else {
 	            System.out.println("Failed to add new password entry to database.");
 	        }
@@ -314,13 +330,14 @@ public class dashboard {
 	}
 
 
-	private static void updatePasswordInDatabase(PasswordEntry entry, int userID) {
+	private static void updatePasswordInDatabase(PasswordEntry entry, int userID, ObservableList<PasswordEntry> data, TableView<PasswordEntry> tableView) {
 	    String encryptedPassword = HillCipher.encrypt(entry.getPassword());
-
+	    System.out.println(entry.getPassword());
+	    System.out.println(encryptedPassword);
 	    String query = "UPDATE useraccounts SET AccountPassword = ? WHERE UserID = ? AND AccountName = ? AND AccountUserName = ?";
 
 	    try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(query)) {
-	        pstmt.setString(1, encryptedPassword); 
+	        pstmt.setString(1, encryptedPassword);
 	        pstmt.setInt(2, userID);
 	        pstmt.setString(3, entry.getAccountType());
 	        pstmt.setString(4, entry.getUsername());
@@ -328,7 +345,11 @@ public class dashboard {
 	        int rowsAffected = pstmt.executeUpdate();
 	        if (rowsAffected > 0) {
 	            System.out.println("Password updated successfully in the database.");
-	            showDeleteSuccessMessage(root , "Password updated successfully in the database!");
+	            showDeleteSuccessMessage(root, "Password updated successfully in the database!");
+
+	            ObservableList<PasswordEntry> updatedData = getPasswordData(userID);
+	            data.setAll(updatedData); 
+	            tableView.refresh(); 
 	        } else {
 	            System.out.println("Failed to update password in the database.");
 	        }
@@ -337,6 +358,7 @@ public class dashboard {
 	        e.printStackTrace();
 	    }
 	}
+
 
 	private static void deletePasswordFromDatabase(PasswordEntry entry, int userID) {
 		String query = "DELETE FROM useraccounts WHERE UserID = ? AND AccountName = ? AND AccountUserName = ?";
