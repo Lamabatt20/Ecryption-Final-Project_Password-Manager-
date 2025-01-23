@@ -72,7 +72,13 @@ public class HillCipher {
         return ciphertext.toString();
     }
 
-    public static String decrypt(String ciphertext) {
+    public static String decrypt(String ciphertext, int size) {
+    	System.out.println(size);
+        // Ensure the ciphertext length matches the expected size
+        if (ciphertext.length() > size) {
+            ciphertext = ciphertext.substring(0, size);
+        }
+
         int[][] inverseKeyMatrix = getInverseKeyMatrix(KEY_MATRIX);
 
         StringBuilder plaintext = new StringBuilder();
@@ -80,9 +86,14 @@ public class HillCipher {
         for (int i = 0; i < ciphertext.length(); i += 2) {
             int[] cipherVector = new int[2];
             for (int j = 0; j < 2; j++) {
-                cipherVector[j] = CHARSET.indexOf(ciphertext.charAt(i + j));
-                if (cipherVector[j] == -1) {
-                    throw new IllegalArgumentException("Character not in CHARSET: " + ciphertext.charAt(i + j));
+                if (i + j >= ciphertext.length()) {
+                    // If the ciphertext has an odd number of characters, fill with padding or handle gracefully
+                    cipherVector[j] = 0; // Assuming 0 is the padding index
+                } else {
+                    cipherVector[j] = CHARSET.indexOf(ciphertext.charAt(i + j));
+                    if (cipherVector[j] == -1) {
+                        throw new IllegalArgumentException("Character not in CHARSET: " + ciphertext.charAt(i + j));
+                    }
                 }
             }
 
@@ -98,9 +109,10 @@ public class HillCipher {
         return plaintext.toString();
     }
 
+
     public static void main(String[] args) {
         // Test cases
-        String plaintext = "password_lama_fb";
+        String plaintext = "password_manar";
         System.out.println("Original Plaintext: " + plaintext);
 
         // Encrypt
@@ -108,7 +120,7 @@ public class HillCipher {
         System.out.println("Encrypted Text: " + encrypted);
 
         // Decrypt
-        String decrypted = decrypt(encrypted);
+        String decrypted = decrypt(encrypted, encrypted.length());
         System.out.println("Decrypted Text: " + decrypted);
 
         // Check if decryption matches the original plaintext

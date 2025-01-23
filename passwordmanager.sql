@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Jan 23, 2025 at 07:08 PM
+-- Generation Time: Jan 23, 2025 at 10:28 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -53,7 +53,7 @@ INSERT INTO `useraccounts` (`AccountID`, `UserID`, `AccountName`, `AccountUserNa
 (10, 3, 'Twitter', 'lana_twitter', '$Zg\'c+|k&~[x,5uBP[>pb}', 21),
 (11, 3, 'Instagram', 'lana_instagram', '$Zg\'c+|k&~[x,5\"5j<2c*bC6', 23),
 (12, 3, 'LinkedIn', 'lana_linkedin', '$Zg\'c+|k&~[x,5\'t\\11X\"5', 22),
-(13, 4, 'Facebook', 'sama_fb', '$Zg\'c+|k~R)u,5xS', 16),
+(13, 4, 'Facebook', 'sama_fb', 'UC8W', 4),
 (14, 4, 'Twitter', 'sama_twitter', '$Zg\'c+|k~R)u,5uBP[>pb}', 21),
 (15, 4, 'Instagram', 'sama_instagram', '$Zg\'c+|k~R)u,5\"5j<2c*bC6', 23),
 (16, 4, 'LinkedIn', 'sama_linkedin', '$Zg\'c+|k~R)u,5\'t\\11X\"5', 22);
@@ -76,10 +76,10 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`UserID`, `UserName`, `UserEmail`, `UserPassword`) VALUES
-(1, 'Manar', 'manar@example.com', 'password_manar'),
-(2, 'Lama', 'lama@example.com', 'password_lama'),
-(3, 'Lana', 'lana@example.com', 'password_lana'),
-(4, 'Sama', 'sama@example.com', 'password_sama');
+(1, 'Manar', 'manar@example.com', '$Zg\'c+|k)=[x?9'),
+(2, 'Lama', 'lama@example.com', '$Zg\'c+|k&~)ukK'),
+(3, 'Lana', 'lana@example.com', '$Zg\'c+|k&~[xkK'),
+(4, 'Sama', 'sama@example.com', '$Zg\'c+|k~R)ukK');
 
 --
 -- Indexes for dumped tables
@@ -113,7 +113,7 @@ ALTER TABLE `useraccounts`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `UserID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `UserID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- Constraints for dumped tables

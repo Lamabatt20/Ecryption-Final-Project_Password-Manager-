@@ -102,23 +102,27 @@ public class login {
         return root;
     }
 
-    // Method to validate user from the database
     private static int isValidUser(String username, String password) {
-        int userID = -1; 
-        String query = "SELECT * FROM users WHERE UserName = ? AND UserPassword = ?";
+        int userID = -1;
+        String query = "SELECT * FROM users WHERE UserName = ?";
 
         try (Connection conn = getConnection(); 
              PreparedStatement pstmt = conn.prepareStatement(query)) {
-        
-            System.out.println("Database connection trueeee!");
 
             pstmt.setString(1, username);
-            pstmt.setString(2, password);  
-
             ResultSet rs = pstmt.executeQuery();
+
             if (rs.next()) {
-            	  userID = rs.getInt("UserID");
-                System.out.println("User email: " + rs.getString("UserEmail"));
+                String encryptedPasswordFromDB = rs.getString("UserPassword");
+               
+                // Encrypt the input password using the same logic
+                String encryptedInputPassword = HillCipher.encrypt(password);
+
+                // Compare the encrypted input password with the one in the database
+                if (encryptedInputPassword.equals(encryptedPasswordFromDB)) {
+                    userID = rs.getInt("UserID");
+                    System.out.println("User email: " + rs.getString("UserEmail"));
+                }
             }
 
         } catch (SQLException ex) {
@@ -127,6 +131,7 @@ public class login {
         }
         return userID;
     }
+
 
     // Method to create and return a connection to the database
     private static Connection getConnection() throws SQLException {
@@ -145,4 +150,4 @@ public class login {
 
         return DriverManager.getConnection(dbUrl, dbUsername, dbPassword);
     }
-} 
+}

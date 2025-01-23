@@ -84,12 +84,16 @@ public class dashboard {
 		Button logoutButton = new Button("Logout");
 		logoutButton.setStyle("-fx-font-size: 18px; -fx-background-color: #7cfff3; -fx-text-fill: black;");
 		logoutButton.setOnAction(e -> {
-			Pane encodeBorderPane = new BorderPane();
-            encodeBorderPane = login.createLoginPane(primaryStage);
-            Scene encodeScene = new Scene(encodeBorderPane);
-            primaryStage.setScene(encodeScene);
-            primaryStage.setFullScreen(true);
+		    tableView.getColumns().clear();
+		    tableView.getItems().clear();
+
+		    Pane encodeBorderPane = new BorderPane();
+		    encodeBorderPane = login.createLoginPane(primaryStage);
+		    Scene encodeScene = new Scene(encodeBorderPane);
+		    primaryStage.setScene(encodeScene);
+		    primaryStage.setFullScreen(true);
 		});
+
 		VBox tableContainer = new VBox();
 		tableContainer.setAlignment(Pos.CENTER);
 		tableContainer.getChildren().add(tableScrollPane);
@@ -107,29 +111,29 @@ public class dashboard {
 	}
 
 	private static ObservableList<PasswordEntry> getPasswordData(int userID) {
-		ObservableList<PasswordEntry> data = FXCollections.observableArrayList();
+	    ObservableList<PasswordEntry> data = FXCollections.observableArrayList();
 
-		String query = "SELECT * FROM useraccounts WHERE UserID = ?";
+	    String query = "SELECT * FROM useraccounts WHERE UserID = ?";
 
-		try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(query)) {
+	    try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(query)) {
+	        pstmt.setInt(1, userID);
+	        ResultSet rs = pstmt.executeQuery();
 
-			pstmt.setInt(1, userID);
-			ResultSet rs = pstmt.executeQuery();
+	        while (rs.next()) {
+	            String accountType = rs.getString("AccountName");
+	            String username = rs.getString("AccountUserName");
+	            String password = rs.getString("AccountPassword");
+	            int size = rs.getInt("Size");  // Retrieve the size field
 
-			while (rs.next()) {
-				String accountType = rs.getString("AccountName");
-				String username = rs.getString("AccountUserName");
-				String password = rs.getString("AccountPassword");
+	            data.add(new PasswordEntry(accountType, username, password, size)); 
+	        }
 
-				data.add(new PasswordEntry(accountType, username, password));
-			}
+	    } catch (SQLException ex) {
+	        System.out.println("Database connection failed!");
+	        ex.printStackTrace();
+	    }
 
-		} catch (SQLException ex) {
-			System.out.println("Database connection failed!");
-			ex.printStackTrace();
-		}
-
-		return data;
+	    return data;
 	}
 
 	private static TableColumn<PasswordEntry, Void> createViewColumn() {
@@ -208,8 +212,21 @@ public class dashboard {
 		return deleteColumn;
 	}
 
-	private static void editEntry(PasswordEntry entry, int userID,ObservableList<PasswordEntry> data) {
-	    String decryptedPassword = HillCipher.decrypt(entry.getPassword());
+
+
+	private static void viewPassword(PasswordEntry entry) {
+	    String decryptedPassword = HillCipher.decrypt(entry.getPassword(), entry.getSize());  // Pass size as parameter
+	    System.out.println(entry.getPassword());
+	    System.out.println(decryptedPassword);
+	    Alert alert = new Alert(Alert.AlertType.INFORMATION);
+	    alert.setTitle("View Password");
+	    alert.setHeaderText("Password for " + entry.getAccountType());
+	    alert.setContentText("Password: " + decryptedPassword);
+	    alert.showAndWait();
+	}
+
+	private static void editEntry(PasswordEntry entry, int userID, ObservableList<PasswordEntry> data) {
+	    String decryptedPassword = HillCipher.decrypt(entry.getPassword(), entry.getSize());  // Pass size as parameter
 	    System.out.println(entry.getPassword());
 	    System.out.println(decryptedPassword);
 	    TextInputDialog dialog = new TextInputDialog(decryptedPassword);
@@ -231,18 +248,6 @@ public class dashboard {
 	            tableView.setItems(updatedData);
 	        }
 	    });
-	}
-
-
-	private static void viewPassword(PasswordEntry entry) {
-	    String decryptedPassword = HillCipher.decrypt(entry.getPassword());
-	    System.out.println(entry.getPassword());
-	    System.out.println(decryptedPassword);
-	    Alert alert = new Alert(Alert.AlertType.INFORMATION);
-	    alert.setTitle("View Password");
-	    alert.setHeaderText("Password for " + entry.getAccountType());
-	    alert.setContentText("Password: " + decryptedPassword);
-	    alert.showAndWait();
 	}
 
 	private static void addNewPassword(ObservableList<PasswordEntry> data, int userID, TableView<PasswordEntry> tableView) {
@@ -285,7 +290,7 @@ public class dashboard {
 	            String password = passwordField.getText();
 
 	            if (accountType != null && !username.isEmpty() && !password.isEmpty()) {
-	                PasswordEntry newEntry = new PasswordEntry(accountType, username, password);
+	                PasswordEntry newEntry = new PasswordEntry(accountType, username, password,password.length());
 	                insertNewPasswordIntoDatabase(newEntry, userID, data, tableView);
 	                return newEntry; // This is handled in `insertNewPasswordIntoDatabase`
 	            }
@@ -301,13 +306,14 @@ public class dashboard {
 	    String encryptedPassword = HillCipher.encrypt(entry.getPassword());
 	    System.out.println(entry.getPassword());
 	    System.out.println(encryptedPassword);
-	    String query = "INSERT INTO useraccounts (UserID, AccountName, AccountUserName, AccountPassword) VALUES (?, ?, ?, ?)";
+	    String query = "INSERT INTO useraccounts (UserID, AccountName, AccountUserName, AccountPassword, Size) VALUES (?, ?, ?, ?, ?)";
 
 	    try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(query)) {
 	        pstmt.setInt(1, userID);
 	        pstmt.setString(2, entry.getAccountType());
 	        pstmt.setString(3, entry.getUsername());
 	        pstmt.setString(4, encryptedPassword);
+	        pstmt.setInt(5, entry.getPassword().length());  // Store the original password size
 
 	        int rowsAffected = pstmt.executeUpdate();
 	        if (rowsAffected > 0) {
@@ -327,17 +333,19 @@ public class dashboard {
 	}
 
 
+
 	private static void updatePasswordInDatabase(PasswordEntry entry, int userID, ObservableList<PasswordEntry> data, TableView<PasswordEntry> tableView) {
 	    String encryptedPassword = HillCipher.encrypt(entry.getPassword());
 	    System.out.println(entry.getPassword());
 	    System.out.println(encryptedPassword);
-	    String query = "UPDATE useraccounts SET AccountPassword = ? WHERE UserID = ? AND AccountName = ? AND AccountUserName = ?";
+	    String query = "UPDATE useraccounts SET AccountPassword = ?, Size = ? WHERE UserID = ? AND AccountName = ? AND AccountUserName = ?";
 
 	    try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(query)) {
 	        pstmt.setString(1, encryptedPassword);
-	        pstmt.setInt(2, userID);
-	        pstmt.setString(3, entry.getAccountType());
-	        pstmt.setString(4, entry.getUsername());
+	        pstmt.setInt(2, entry.getPassword().length()); 
+	        pstmt.setInt(3, userID);
+	        pstmt.setString(4, entry.getAccountType());
+	        pstmt.setString(5, entry.getUsername());
 
 	        int rowsAffected = pstmt.executeUpdate();
 	        if (rowsAffected > 0) {
@@ -355,6 +363,7 @@ public class dashboard {
 	        e.printStackTrace();
 	    }
 	}
+
 
 
 	private static void deletePasswordFromDatabase(PasswordEntry entry, int userID) {

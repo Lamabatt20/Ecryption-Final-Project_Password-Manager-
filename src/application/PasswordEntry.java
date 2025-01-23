@@ -8,13 +8,24 @@ public class PasswordEntry {
     private final StringProperty accountType;
     private final StringProperty username;
     private final StringProperty password;
-
-    public PasswordEntry(String accountType, String username, String password) {
+    private int size;  
+    public PasswordEntry(String accountType, String username, String password, int size) {
         this.accountType = new SimpleStringProperty(accountType);
         this.username = new SimpleStringProperty(username);
         this.password = new SimpleStringProperty(password);
+        this.size = size;
+
     }
 
+    public int getSize() {
+        return size;
+    }
+
+    public void setSize(int size) {
+        this.size = size;
+    }
+
+   
     public String getAccountType() {
         return accountType.get();
     }
