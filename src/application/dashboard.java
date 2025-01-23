@@ -287,18 +287,15 @@ public class dashboard {
 	            if (accountType != null && !username.isEmpty() && !password.isEmpty()) {
 	                PasswordEntry newEntry = new PasswordEntry(accountType, username, password);
 	                insertNewPasswordIntoDatabase(newEntry, userID, data, tableView);
-	                return newEntry;
-	            } else {
-	                return null;
+	                return newEntry; // This is handled in `insertNewPasswordIntoDatabase`
 	            }
 	        }
 	        return null;
 	    });
 
-	    dialog.showAndWait().ifPresent(entry -> {
-	        data.add(entry);
-	    });
+	    dialog.showAndWait();
 	}
+
 
 	private static void insertNewPasswordIntoDatabase(PasswordEntry entry, int userID, ObservableList<PasswordEntry> data, TableView<PasswordEntry> tableView) {
 	    String encryptedPassword = HillCipher.encrypt(entry.getPassword());

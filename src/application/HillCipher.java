@@ -100,7 +100,7 @@ public class HillCipher {
 
     public static void main(String[] args) {
         // Test cases
-        String plaintext = "password_sama_twitter";
+        String plaintext = "password_sama_linkedin";
         System.out.println("Original Plaintext: " + plaintext);
 
         // Encrypt
